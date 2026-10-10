@@ -1,0 +1,22 @@
+# ============================================================
+# СПРАВОЧНИК СН-МНГ — запуск одним файлом compose.
+# Все установки выполняются внутри контейнера (multi-stage build).
+# Windows (Docker Desktop) и Linux (Docker Engine): docker compose up -d
+# ============================================================
+services:
+  spravochnik:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spravochnik-sn-mng:latest
+    container_name: spravochnik-sn-mng
+    restart: unless-stopped
+    ports:
+      - "8080:80"          # хост:контейнер; при необходимости поменяйте 8080
+    volumes:
+      - ./data:/usr/share/nginx/html/data   # папка для бэкапов/экспортов на хосте
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

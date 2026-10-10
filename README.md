@@ -2,31 +2,39 @@
 
 Веб-приложение для управления справочником сотрудников с автоматическим сопоставлением данных TrueConf.
 
-## 🚀 Быстрый старт
+## 🚀 Быстрый старт — готовое решение в контейнере (рекомендуется)
 
-### Вариант 1: Использовать готовую сборку (рекомендуется)
+Все установки (Node.js, зависимости, сборка) выполняются **внутри Docker-контейнера**.
+На вашем компьютере не нужно ничего устанавливать, кроме Docker. Одинаково на Windows и Linux.
 
-Приложение уже собрано и доступно через превью. Просто откройте его и пользуйтесь.
+**Windows:** дважды щёлкните `run-windows.bat` (или в папке проекта выполните `docker compose up -d --build`).
 
-### Вариант 2: Запустить локально
+**Linux:**
 
 ```bash
-# Установить зависимости
-npm install
-
-# Запустить dev-сервер
-npm run dev
-
-# Открыть http://localhost:3000
+chmod +x run-linux.sh && ./run-linux.sh   # или: docker compose up -d --build
 ```
 
-### Вариант 3: Собрать production-версию
+После сборки откройте в браузере: **http://localhost:8080**
+Для сотрудников сети: **http://ИМЯ-ИЛИ-IP-СЕРВЕРА:8080**
+
+Полезные команды:
 
 ```bash
-npm run build
+docker compose logs -f        # журнал сервера
+docker compose restart        # перезапуск
+docker compose down           # остановка
+docker save spravochnik-sn-mng:latest -o spravochnik.tar   # перенос образа на офлайн-машину
+docker load -i spravochnik.tar                             # ...и загрузка там
+```
 
-# Готовые файлы в папке dist/
-# Откройте dist/index.html в браузере
+Файлы решения: `Dockerfile` (multi-stage: node:20-alpine → nginx:1.27-alpine),
+`docker-compose.yml`, `deploy/nginx.conf`, `.dockerignore`, `run-windows.bat`, `run-linux.sh`.
+
+### Альтернатива без Docker
+
+```bash
+npm install && npm run build   # готовые файлы в dist/, откройте dist/index.html
 ```
 
 ## 🌐 Публикация на общем сетевом ресурсе
