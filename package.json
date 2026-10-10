@@ -23,6 +23,7 @@
     "react-router-dom": "^6.8.0",
     "recharts": "^2.10.0",
     "uuid": "^9.0.1",
+    "vite-plugin-singlefile": "^2.3.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
