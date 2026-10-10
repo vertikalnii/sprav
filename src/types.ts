@@ -10,6 +10,8 @@ export interface Employee {
   phoneCallLink: string;
   trueConfId: string;
   phoneCount: string;
+  company?: string;   // Компания (МЭН / ПАО СН-МНГ / МУБР) — из справочника или сопоставления
+  department?: string; // Подразделение / заголовок раздела (для отчёта по категориям)
   // Matching status
   matchStatus?: 'matched' | 'unmatched' | 'conflict' | 'new';
   matchedTrueConfUser?: TrueConfUser;

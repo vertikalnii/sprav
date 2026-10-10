@@ -131,6 +131,56 @@ export function exportToExcel(employees: Employee[], filename: string = 'Спр�
   XLSX.writeFile(wb, filename);
 }
 
+// =============================================================================
+// Экспорт с «живыми» формулами HYPERLINK/VLOOKUP — как в исходном Excel-файле.
+// Колонки: A..J (10 колонок). Формулы в G (звонок по ID), H (звонок по номеру),
+// J (#телефона) пересчитываются Excel при открытии и работают в LibreOffice.
+// =============================================================================
+export function exportToExcelWithFormulas(
+  employees: Employee[],
+  filename: string = 'СПРАВОЧНИК СН-МНГ.xlsx'
+) {
+  const header = [
+    'Фамилия Имя Отчество',
+    'Должность',
+    '№ Кабинета',
+    '№ Телефона',
+    '№ Корпоративный мобильный телефон',
+    'Тип телефонной линии',
+    'Звонок в TrueConf',
+    'Звонок на № телефона с TrueConf',
+    'ID TrueConf',
+    '#телефона',
+  ];
+
+  const aoa: any[][] = [header];
+  employees.forEach((emp, idx) => {
+    const r = idx + 2; // строка в листе (после заголовка)
+    aoa.push([
+      emp.fullName,
+      emp.position,
+      emp.officeNumber,
+      emp.phoneNumber,
+      emp.mobilePhone,
+      emp.lineType,
+      { t: 's', f: `IF(I${r}="","",HYPERLINK(CONCATENATE("trueconf:",I${r}),"Вызов по TrueConf"))` },
+      { t: 's', f: `IF(J${r}=" ","",IFERROR(HYPERLINK("Trueconf:#tel:"&J${r},"Позвонить на № телефона"),""))` },
+      emp.trueConfId,
+      { t: 's', f: `IF(D${r}=""," ",CONCATENATE("051",D${r}))` },
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    { wch: 35 }, { wch: 30 }, { wch: 12 }, { wch: 18 }, { wch: 20 },
+    { wch: 15 }, { wch: 40 }, { wch: 35 }, { wch: 20 }, { wch: 10 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Справочник');
+  XLSX.writeFile(wb, filename);
+}
+
 export function exportReportToExcel(report: Array<{type: string; name: string; details: string; company?: string}>, filename: string = 'Отчет_расхождения.xlsx') {
   const header = ['Тип', 'ФИО', 'Детали', 'Компания'];
   const typeLabels: Record<string, string> = {

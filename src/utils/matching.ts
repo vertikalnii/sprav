@@ -148,3 +148,64 @@ export function generatePhoneCallLink(phoneNumber: string): string {
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
 }
+
+// =============================================================================
+// Автозаполнение ФИО и должности из выгрузок TrueConf (режим Администратора)
+// Для записей справочника без ФИО/должности подбираем кандидата из TrueConf:
+//  - по ID TrueConf (когда он уже известен), либо
+//  - по логину/ФИО, если запись была добавлена как "новый пользователь TC".
+// =============================================================================
+export function autofillFromTrueConf(
+  employees: Employee[],
+  trueConfUsers: TrueConfUser[]
+): { updated: Employee[]; filledCount: number } {
+  let filledCount = 0;
+  const byAttr = new Map<string, TrueConfUser>();
+  for (const u of trueConfUsers) {
+    if (u.attribute) byAttr.set(normalizeName(u.attribute), u);
+    if (u.login) byAttr.set(normalizeName(u.login), u);
+  }
+
+  const updated = employees.map(emp => {
+    const needName = !emp.fullName || !emp.fullName.trim();
+    if (!needName) return emp;
+
+    let user: TrueConfUser | undefined;
+    if (emp.trueConfId) user = byAttr.get(normalizeName(emp.trueConfId));
+    if (!user && emp.matchedTrueConfUser) user = emp.matchedTrueConfUser;
+
+    if (user) {
+      filledCount++;
+      return {
+        ...emp,
+        fullName: user.fullName,
+        position: emp.position || '', // должность в TrueConf отсутствует — заполняет администратор
+        company: emp.company || user.company,
+        matchStatus: 'matched' as const,
+        matchedTrueConfUser: user,
+      };
+    }
+    return emp;
+  });
+
+  return { updated, filledCount };
+}
+
+// =============================================================================
+// Генерация ссылок вызова для экспорта в Excel (аналог формул HYPERLINK из VBA)
+// =============================================================================
+export function buildCallFormulaById(row: number): string {
+  return `=IF(I${row}="","",HYPERLINK(CONCATENATE("trueconf:",I${row}),"Вызов по TrueConf"))`;
+}
+
+export function buildCallFormulaByPhone(row: number): string {
+  return `=IF(J${row}=" ","",IFNA(HYPERLINK("Trueconf:#tel:"&J${row},"Позвонить на № телефона"),""))`;
+}
+
+export function buildPhoneCountFormula(row: number): string {
+  return `=IF(D${row}=""," ",CONCATENATE("051",D${row}))`;
+}
+
+export function buildIdLookupFormula(row: number, sheet: string, range: string): string {
+  return `=IF(A${row}="","",IFERROR(VLOOKUP(A${row},${sheet}!${range},2,0),""))`;
+}

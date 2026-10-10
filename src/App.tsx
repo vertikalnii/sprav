@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Employee, TrueConfUser, DiscrepancyReport, ProcessingStats } from './types';
-import { matchEmployeesToTrueConf, generateTrueConfLink, generatePhoneCallLink, generateId } from './utils/matching';
-import { parseEmployeeFile, parseTrueConfFile, exportToExcel } from './utils/excel';
+import { matchEmployeesToTrueConf, generateTrueConfLink, generatePhoneCallLink, generateId, autofillFromTrueConf } from './utils/matching';
+import { parseEmployeeFile, parseTrueConfFile, exportToExcel, exportToExcelWithFormulas } from './utils/excel';
+import { loadRole, saveRole, Role } from './utils/auth';
 import {
   saveState, loadState, saveFile, getAllFiles, deleteFile, clearAllFiles,
   addHistory, StoredFile, AppState
@@ -12,6 +13,7 @@ import EmployeeTable from './components/EmployeeTable';
 import Report from './components/Report';
 import TrueConfView from './components/TrueConfView';
 import ContainerPanel from './components/ContainerPanel';
+import AdminLoginModal from './components/AdminLoginModal';
 
 type TabType = 'upload' | 'table' | 'tcview' | 'report';
 
@@ -29,6 +31,9 @@ function App() {
   const [containerOpen, setContainerOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
+  const [role, setRole] = useState<Role>(() => loadRole());
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const isAdmin = role === 'admin';
 
   const employeesRef = useRef(employees);
   const trueConfUsersRef = useRef(trueConfUsers);
@@ -221,6 +226,52 @@ function App() {
     logHistory('Экспорт в Excel', `Экспортировано ${employees.length} записей`);
   }, [employees, showNotification, logHistory]);
 
+  // Экспорт «как в Excel-макросе»: колонки G/H/J — живые формулы HYPERLINK,
+  // открывающие звонок в TrueConf по ID и по номеру телефона.
+  const handleExportWithFormulas = useCallback(() => {
+    if (employees.length === 0) {
+      showNotification('error', 'Нет данных для экспорта');
+      return;
+    }
+    exportToExcelWithFormulas(employees);
+    showNotification('success', 'Экспортирован файл с рабочими ссылками вызова TrueConf');
+    logHistory('Экспорт с формулами', `${employees.length} записей, формулы HYPERLINK`);
+  }, [employees, showNotification, logHistory]);
+
+  // === АДМИН: автозаполнение ФИО из выгрузок TrueConf ===
+  const handleAutofill = useCallback(() => {
+    if (!isAdmin) {
+      showNotification('error', 'Автозаполнение доступно только Администратору');
+      return;
+    }
+    if (trueConfUsers.length === 0) {
+      showNotification('error', 'Сначала загрузите выгрузки TrueConf_User');
+      return;
+    }
+    const { updated, filledCount } = autofillFromTrueConf(employees, trueConfUsers);
+    setEmployees(updated);
+    if (filledCount > 0) {
+      showNotification('success', `Автозаполнение: заполнено ФИО — ${filledCount} записей`);
+      logHistory('Автозаполнение ФИО', `Заполнено записей: ${filledCount}`);
+    } else {
+      showNotification('info', 'Нет записей без ФИО, требующих автозаполнения');
+    }
+  }, [isAdmin, employees, trueConfUsers, showNotification, logHistory]);
+
+  const handleAdminLoginSuccess = useCallback(() => {
+    setRole('admin');
+    saveRole('admin');
+    setAdminModalOpen(false);
+    showNotification('success', 'Режим Администратора включён: полное редактирование доступно');
+    logHistory('Вход администратора', 'Включён режим полного редактирования');
+  }, [showNotification, logHistory]);
+
+  const handleLogout = useCallback(() => {
+    setRole('viewer');
+    saveRole('viewer');
+    showNotification('info', 'Вы вышли из режима Администратора');
+  }, [showNotification]);
+
   const handleUpdateEmployees = useCallback((updated: Employee[]) => {
     setEmployees(updated);
   }, []);
@@ -356,6 +407,30 @@ function App() {
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Режим Администратора */}
+              {isAdmin ? (
+                <div className="flex items-center gap-1">
+                  <span className="px-2.5 py-2 text-sm bg-amber-100 text-amber-800 rounded-lg font-medium flex items-center gap-1.5">
+                    🛡 Админ
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="px-2 py-2 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg"
+                    title="Выйти из режима Администратора"
+                  >
+                    Выйти
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAdminModalOpen(true)}
+                  className="px-3 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium flex items-center gap-1.5 shadow-sm"
+                  title="Войти для полного редактирования ФИО и должностей"
+                >
+                  🔐 <span className="hidden sm:inline">Администратор</span>
+                </button>
+              )}
+
               {/* Container button */}
               <button
                 onClick={() => setContainerOpen(true)}
@@ -388,6 +463,24 @@ function App() {
                   >
                     📥 Excel
                   </button>
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={handleAutofill}
+                        className="px-3 py-2 text-sm bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors font-medium"
+                        title="Заполнить ФИО из выгрузок TrueConf_User"
+                      >
+                        ✨ Автозаполнение
+                      </button>
+                      <button
+                        onClick={handleExportWithFormulas}
+                        className="px-3 py-2 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors font-medium"
+                        title="Экспорт с рабочими формулами HYPERLINK для звонков TrueConf"
+                      >
+                        📞 Excel+ссылки
+                      </button>
+                    </>
+                  )}
                 </>
               )}
 
@@ -635,7 +728,7 @@ function App() {
         )}
 
         {activeTab === 'table' && (
-          <EmployeeTable employees={employees} onUpdate={handleUpdateEmployees} />
+          <EmployeeTable employees={employees} onUpdate={handleUpdateEmployees} isAdmin={isAdmin} />
         )}
 
         {activeTab === 'tcview' && (
@@ -656,6 +749,13 @@ function App() {
         onClearAll={handleClearAll}
         employeeCount={employees.length}
         matchedCount={stats.matched}
+      />
+
+      {/* Admin Login Modal */}
+      <AdminLoginModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        onSuccess={handleAdminLoginSuccess}
       />
 
       {/* Footer */}

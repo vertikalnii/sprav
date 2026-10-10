@@ -5,9 +5,13 @@ import { generateId, generateTrueConfLink, generatePhoneCallLink } from '../util
 interface EmployeeTableProps {
   employees: Employee[];
   onUpdate: (employees: Employee[]) => void;
+  isAdmin?: boolean;
 }
 
-const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) => {
+// Поля, доступные для редактирования только администратору
+const ADMIN_ONLY_FIELDS = new Set<keyof Employee>(['fullName', 'position', 'trueConfId']);
+
+const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate, isAdmin = false }) => {
   const [editingCell, setEditingCell] = useState<{ rowId: string; field: keyof Employee } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [filter, setFilter] = useState<string>('');
@@ -22,6 +26,7 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) =>
   }, [editingCell]);
 
   const handleCellClick = (rowId: string, field: keyof Employee) => {
+    if (!isAdmin && ADMIN_ONLY_FIELDS.has(field)) return; // только для администратора
     const emp = employees.find(e => e.id === rowId);
     if (emp) {
       setEditValue(String(emp[field] || ''));
@@ -114,8 +119,9 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) =>
   const renderCell = (emp: Employee, field: keyof Employee) => {
     const isEditing = editingCell?.rowId === emp.id && editingCell?.field === field;
     const value = String(emp[field] || '');
+    const locked = !isAdmin && ADMIN_ONLY_FIELDS.has(field);
 
-    if (isEditing) {
+    if (isEditing && !locked) {
       return (
         <input
           ref={inputRef}
@@ -132,8 +138,10 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) =>
     return (
       <div
         onClick={() => handleCellClick(emp.id, field)}
-        className="px-2 py-1.5 cursor-pointer hover:bg-blue-50 rounded min-h-[28px] truncate text-sm"
-        title={value}
+        className={`px-2 py-1.5 rounded min-h-[28px] truncate text-sm ${
+          locked ? 'cursor-default' : 'cursor-pointer hover:bg-blue-50'
+        }`}
+        title={locked ? 'Редактирование доступно только Администратору' : value}
       >
         {value || <span className="text-gray-300">—</span>}
       </div>
@@ -166,7 +174,9 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) =>
         </select>
         <button
           onClick={handleAddRow}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
+          disabled={!isAdmin}
+          title={isAdmin ? 'Добавить запись' : 'Только Администратор'}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span>+</span> Добавить строку
         </button>
@@ -204,26 +214,42 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onUpdate }) =>
                 <td className="px-1 py-1">{renderCell(emp, 'lineType')}</td>
                 <td className="px-1 py-1">
                   {emp.trueConfId ? (
-                    <a
-                      href={emp.trueConfCallLink || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-mono"
-                      title={emp.trueConfCallLink}
-                    >
-                      {emp.trueConfId}
-                    </a>
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={emp.trueConfCallLink || generateTrueConfLink(emp.trueConfId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-mono truncate"
+                        title={`Звонок в TrueConf по ID: ${emp.trueConfId}`}
+                      >
+                        {emp.trueConfId}
+                      </a>
+                      <a
+                        href={generateTrueConfLink(emp.trueConfId)}
+                        title="Позвонить через TrueConf"
+                        className="shrink-0 text-green-700 hover:text-green-900"
+                      >📞</a>
+                    </div>
                   ) : renderCell(emp, 'trueConfId')}
                 </td>
                 <td className="px-3 py-1">{getStatusBadge(emp.matchStatus)}</td>
                 <td className="px-2 py-1">
-                  <button
-                    onClick={() => handleDeleteRow(emp.id)}
-                    className="text-red-400 hover:text-red-600 transition-colors text-lg"
-                    title="Удалить строку"
-                  >
-                    ×
-                  </button>
+                  {(emp.phoneNumber || emp.mobilePhone) ? (
+                    <a
+                      href={generatePhoneCallLink(emp.phoneNumber || emp.mobilePhone)}
+                      title={`Позвонить на номер ${emp.phoneNumber || emp.mobilePhone} из TrueConf`}
+                      className="text-indigo-700 hover:text-indigo-900"
+                    >📲</a>
+                  ) : null}
+                  {isAdmin ? (
+                    <button
+                      onClick={() => handleDeleteRow(emp.id)}
+                      className="text-red-400 hover:text-red-600 transition-colors text-lg"
+                      title="Удалить строку"
+                    >
+                      ×
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             ))}
