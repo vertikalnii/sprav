@@ -2,25 +2,25 @@ Attribute VB_Name = "Module1"
 Option Explicit
 
 ' =====================================================================
-' РРњР•РќРђ Р›РРЎРўРћР’
+' ИМЕНА ЛИСТОВ
 ' =====================================================================
-Private Const SHEET_NAME_SPRAV As String = "РЎРїСЂР°РІРѕС‡РЅРёРє"
-Private Const SHEET_NAME_DISCREPANCY As String = "Р Р°СЃС…РѕР¶РґРµРЅРёСЏ"
-Private Const SHEET_NAME_REPORT As String = "РћС‚С‡РµС‚_РїРѕ_РєР°С‚РµРіРѕСЂРёСЏРј"
+Private Const SHEET_NAME_SPRAV As String = "Справочник"
+Private Const SHEET_NAME_DISCREPANCY As String = "Расхождения"
+Private Const SHEET_NAME_REPORT As String = "Отчет_по_категориям"
 
 ' =====================================================================
-' РћР Р“РђРќРР—РђР¦РР
+' ОРГАНИЗАЦИИ
 ' =====================================================================
-Private Const ORG_MEN  As String = "РњР­Рќ"
+Private Const ORG_MEN  As String = "МЭН"
 Private Const ORG_PAO  As String = "PAO"
 Private Const ORG_MUBR As String = "MUBR"
 
 
 ' =====================================================================
-' РћРЎРќРћР’РќРђРЇ РџР РћР¦Р•Р”РЈР Рђ
-' 1) РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІС‹Р±РёСЂР°РµС‚ РќР•РЎРљРћР›Р¬РљРћ С„Р°Р№Р»РѕРІ TrueConf СЃСЂР°Р·Сѓ
-' 2) Р”Р°РЅРЅС‹Рµ РІСЃРµС… С„Р°Р№Р»РѕРІ РѕР±СЉРµРґРёРЅСЏСЋС‚СЃСЏ РІ РѕРґРёРЅ РЅР°Р±РѕСЂ
-' 3) РћС‚С‡С‘С‚РЅС‹Рµ Р»РёСЃС‚С‹ СЃРѕР·РґР°СЋС‚СЃСЏ Р·Р°РЅРѕРІРѕ (СѓРґР°Р»СЏСЋС‚СЃСЏ СЃС‚Р°СЂС‹Рµ)
+' ОСНОВНАЯ ПРОЦЕДУРА
+' 1) Пользователь выбирает НЕСКОЛЬКО файлов TrueConf сразу
+' 2) Данные всех файлов объединяются в один набор
+' 3) Отчётные листы создаются заново (удаляются старые)
 ' =====================================================================
 Sub FillSpravochnikAndCreateReport()
     Dim wbSprav As Workbook: Set wbSprav = ThisWorkbook
@@ -29,19 +29,19 @@ Sub FillSpravochnikAndCreateReport()
     Set wsSprav = wbSprav.Sheets(SHEET_NAME_SPRAV)
     On Error GoTo 0
     If wsSprav Is Nothing Then
-        MsgBox "РљСЂРёС‚РёС‡РµСЃРєР°СЏ РѕС€РёР±РєР°: Р›РёСЃС‚ '" & SHEET_NAME_SPRAV & "' РЅРµ РЅР°Р№РґРµРЅ.", vbCritical
+        MsgBox "Критическая ошибка: Лист '" & SHEET_NAME_SPRAV & "' не найден.", vbCritical
         Exit Sub
     End If
 
-    ' --- РњСѓР»СЊС‚РёРІС‹Р±РѕСЂ С„Р°Р№Р»РѕРІ ---
+    ' --- Мультивыбор файлов ---
     Dim filePaths As Variant
-    filePaths = SelectFiles("Р’С‹Р±РµСЂРёС‚Рµ С„Р°Р№Р»С‹ СЃ РґР°РЅРЅС‹РјРё TrueConf (РјРѕР¶РЅРѕ РЅРµСЃРєРѕР»СЊРєРѕ)", _
+    filePaths = SelectFiles("Выберите файлы с данными TrueConf (можно несколько)", _
                             "*.xlsx; *.xlsm; *.xls")
-    If UBound(filePaths) < 0 Then Exit Sub   ' РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РјРµРЅРёР» РІС‹Р±РѕСЂ
+    If UBound(filePaths) < 0 Then Exit Sub   ' пользователь отменил выбор
 
     ToggleAppSettings False
 
-    ' --- РЎР»РѕРІР°СЂРё РѕР±РЅСѓР»СЏРµРј РџР•Р Р•Р” Р·Р°РїСѓСЃРєРѕРј (РІР°Р¶РЅРѕ РґР»СЏ РїРѕРІС‚РѕСЂРЅС‹С… Р·Р°РїСѓСЃРєРѕРІ) ---
+    ' --- Словари обнуляем ПЕРЕД запуском (важно для повторных запусков) ---
     Dim dictAttr As Object, dictTCFull As Object
     Set dictAttr = Nothing
     Set dictTCFull = Nothing
@@ -51,8 +51,8 @@ Sub FillSpravochnikAndCreateReport()
     Dim totalFiles As Long: totalFiles = UBound(filePaths) - LBound(filePaths) + 1
 
     For f = LBound(filePaths) To UBound(filePaths)
-        Application.StatusBar = "РћР±СЂР°Р±РѕС‚РєР° С„Р°Р№Р»РѕРІ: " & (f - LBound(filePaths) + 1) & _
-                                " РёР· " & totalFiles & " вЂ” " & Dir(CStr(filePaths(f)))
+        Application.StatusBar = "Обработка файлов: " & (f - LBound(filePaths) + 1) & _
+                                " из " & totalFiles & " — " & Dir(CStr(filePaths(f)))
         DoEvents
 
         Set wbTC = OpenWorkbookSafe(CStr(filePaths(f)))
@@ -68,46 +68,46 @@ Sub FillSpravochnikAndCreateReport()
     Application.StatusBar = False
 
     If dictAttr Is Nothing Or dictAttr.Count = 0 Then
-        MsgBox "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РґР°РЅРЅС‹Рµ РЅРё РёР· РѕРґРЅРѕРіРѕ С„Р°Р№Р»Р° TrueConf.", vbExclamation
+        MsgBox "Не удалось загрузить данные ни из одного файла TrueConf.", vbExclamation
         ToggleAppSettings True
         Exit Sub
     End If
 
-    MsgBox "Р—Р°РіСЂСѓР¶РµРЅРѕ " & dictAttr.Count & " СѓРЅРёРєР°Р»СЊРЅС‹С… Р·Р°РїРёСЃРµР№ РёР· " & loadedFiles & " С„Р°Р№Р»(РѕРІ).", vbInformation
+    MsgBox "Загружено " & dictAttr.Count & " уникальных записей из " & loadedFiles & " файл(ов).", vbInformation
 
-    ' --- РћР±СЂР°Р±РѕС‚РєР° СЃРїСЂР°РІРѕС‡РЅРёРєР° ---
+    ' --- Обработка справочника ---
     Dim foundCount As Long, notFoundCount As Long, skippedCount As Long
     ProcessMainData wsSprav, dictAttr, foundCount, notFoundCount, skippedCount
 
-    ' --- РћС‚С‡С‘С‚С‹: РєР°Р¶РґС‹Р№ СЂР°Р· СѓРґР°Р»СЏСЋС‚СЃСЏ СЃС‚Р°СЂС‹Рµ Рё СЃРѕР·РґР°СЋС‚СЃСЏ Р·Р°РЅРѕРІРѕ ---
+    ' --- Отчёты: каждый раз удаляются старые и создаются заново ---
     CreateDiscrepancyReport wbSprav, dictTCFull, wsSprav
     CreateCategoryReport wbSprav, wsSprav
 
     ToggleAppSettings True
-    MsgBox "Р“РѕС‚РѕРІРѕ!" & vbCrLf & _
-           "РћР±СЂР°Р±РѕС‚Р°РЅРѕ С„Р°Р№Р»РѕРІ: " & loadedFiles & " РёР· " & totalFiles & vbCrLf & _
-           "РќР°Р№РґРµРЅРѕ: " & foundCount & vbCrLf & _
-           "РќРµ РЅР°Р№РґРµРЅРѕ: " & notFoundCount & vbCrLf & _
-           "РџСЂРѕРїСѓС‰РµРЅРѕ: " & skippedCount, vbInformation
+    MsgBox "Готово!" & vbCrLf & _
+           "Обработано файлов: " & loadedFiles & " из " & totalFiles & vbCrLf & _
+           "Найдено: " & foundCount & vbCrLf & _
+           "Не найдено: " & notFoundCount & vbCrLf & _
+           "Пропущено: " & skippedCount, vbInformation
     Exit Sub
 
 ErrHandler:
     Application.StatusBar = False
     ToggleAppSettings True
-    MsgBox "РљСЂРёС‚РёС‡РµСЃРєР°СЏ РѕС€РёР±РєР°: " & Err.Description, vbCritical
+    MsgBox "Критическая ошибка: " & Err.Description, vbCritical
 End Sub
 
 
 ' =====================================================================
-' РњРЈР›Р¬РўРР’Р«Р‘РћР  Р¤РђР™Р›РћР’
-' Р’РѕР·РІСЂР°С‰Р°РµС‚ РјР°СЃСЃРёРІ РїСѓС‚РµР№. Р•СЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РјРµРЅРёР» вЂ” РїСѓСЃС‚РѕР№ РјР°СЃСЃРёРІ.
+' МУЛЬТИВЫБОР ФАЙЛОВ
+' Возвращает массив путей. Если пользователь отменил — пустой массив.
 ' =====================================================================
 Private Function SelectFiles(title As String, filter As String) As Variant
     Dim result() As String
     With Application.FileDialog(msoFileDialogFilePicker)
         .title = title
         .Filters.Clear
-        .Filters.Add "Р¤Р°Р№Р»С‹ Excel", filter
+        .Filters.Add "Файлы Excel", filter
         .AllowMultiSelect = True
         .InitialFileName = ThisWorkbook.Path & "\"
         If .Show = -1 And .SelectedItems.Count > 0 Then
@@ -119,14 +119,14 @@ Private Function SelectFiles(title As String, filter As String) As Variant
             Next i
             SelectFiles = result
         Else
-            SelectFiles = Array()   ' РїСѓСЃС‚РѕР№ РјР°СЃСЃРёРІ
+            SelectFiles = Array()   ' пустой массив
         End If
     End With
 End Function
 
 
 ' =====================================================================
-' Р’РЎРџРћРњРћР“РђРўР•Р›Р¬РќР«Р• РџР РћР¦Р•Р”РЈР Р«
+' ВСПОМОГАТЕЛЬНЫЕ ПРОЦЕДУРЫ
 ' =====================================================================
 Private Function OpenWorkbookSafe(filePath As String) As Workbook
     On Error Resume Next
@@ -144,22 +144,44 @@ End Sub
 
 
 ' =====================================================================
-' РџР РћР’Р•Р РљРђ РћР Р“РђРќРР—РђР¦РР
+' ПРОВЕРКА ОРГАНИЗАЦИИ
 ' =====================================================================
 Private Function IsTargetOrganization(company As String) As Boolean
     Dim c As String: c = UCase(Trim(company))
-    IsTargetOrganization = (InStr(c, "РњР­Рќ") > 0) Or _
+    IsTargetOrganization = (InStr(c, "МЭН") > 0) Or _
                            (InStr(c, "PAO") > 0) Or _
-                           (InStr(c, "РџРђРћ") > 0) Or _
+                           (InStr(c, "ПАО") > 0) Or _
                            (InStr(c, "MUBR") > 0) Or _
-                           (InStr(c, "РњРЈР‘Р ") > 0)
+                           (InStr(c, "МУБР") > 0)
 End Function
 
 
 ' =====================================================================
-' Р—РђР“Р РЈР—РљРђ Р”РђРќРќР«РҐ РР— TRUECONF
-' Р’РђР–РќРћ: СЃР»РѕРІР°СЂРё РќР• РїРµСЂРµСЃРѕР·РґР°СЋС‚СЃСЏ, РµСЃР»Рё СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓСЋС‚ вЂ” С‚Р°Рє РґР°РЅРЅС‹Рµ
-' РёР· РЅРµСЃРєРѕР»СЊРєРёС… С„Р°Р№Р»РѕРІ РЅР°РєР°РїР»РёРІР°СЋС‚СЃСЏ РІ РѕР±С‰РёР№ РЅР°Р±РѕСЂ.
+' КЛАСС КОМПАНИИ (МЭН / ПАО / МУБР)
+' Разные написания в файлах («OOO "МЭН"», «ПАО «СН-МНГ»», «OOO "МУБР"»)
+' и пустая колонка M справочника приводятся к единому классу,
+' чтобы сопоставление по ФИО+компания реально работало.
+' Пустое значение считается МЭН.
+' =====================================================================
+Private Function CompanyClass(ByVal company As String) As String
+    Dim c As String: c = UCase(Trim(company))
+    If Len(c) = 0 Then
+        CompanyClass = "МЭН"
+    ElseIf InStr(c, "МУБР") > 0 Or InStr(c, "MUBR") > 0 Then
+        CompanyClass = "МУБР"
+    ElseIf InStr(c, "ПАО") > 0 Or InStr(c, "PAO") > 0 Or _
+           InStr(c, "СН-МНГ") > 0 Or InStr(c, "SN-MNG") > 0 Then
+        CompanyClass = "ПАО"
+    Else
+        CompanyClass = "МЭН"
+    End If
+End Function
+
+
+' =====================================================================
+' ЗАГРУЗКА ДАННЫХ ИЗ TRUECONF
+' ВАЖНО: словари НЕ пересоздаются, если уже существуют — так данные
+' из нескольких файлов накапливаются в общий набор.
 ' =====================================================================
 Private Function LoadTrueConfData(wsTC As Worksheet, ByRef dictAttr As Object, _
                                   ByRef dictTCFull As Object) As Boolean
@@ -190,12 +212,12 @@ Private Function LoadTrueConfData(wsTC As Worksheet, ByRef dictAttr As Object, _
     For j = 1 To UBound(arrTC, 1)
         fioTC = NormalizeFIO(CStr(arrTC(j, 2)))
         attrTC = Trim(CStr(arrTC(j, 5)))
-        company = Trim(CStr(arrTC(j, 6)))   ' РљРѕР»РѕРЅРєР° F: РљРѕРјРїР°РЅРёСЏ
+        company = Trim(CStr(arrTC(j, 6)))   ' Колонка F: Компания
 
         If Not IsTargetOrganization(company) Then GoTo NextTC
 
         If Len(fioTC) > 0 And Len(attrTC) > 0 Then
-            key = fioTC & "|" & company
+            key = fioTC & "|" & CompanyClass(company)
 
             If Not dictAttr.Exists(key) Then dictAttr(key) = attrTC
             If Not dictAttr.Exists(fioTC) Then dictAttr(fioTC) = attrTC
@@ -223,13 +245,13 @@ End Function
 
 
 ' =====================================================================
-' РћР‘Р РђР‘РћРўРљРђ РћРЎРќРћР’РќРћР“Рћ РЎРџР РђР’РћР§РќРРљРђ
-' 1) РџРѕ СЃРѕРІРїР°РґРµРЅРёСЋ Р¤РРћ Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ РєРѕР»РѕРЅРєР° I (ID TrueConf).
-' 2) Р¤РѕСЂРјСѓР»С‹ РіРёРїРµСЂСЃСЃС‹Р»РѕРє Р·Р°РїРёСЃС‹РІР°СЋС‚СЃСЏ РІ РљРђР–Р”РЈР® СЃС‚СЂРѕРєСѓ РґР°РЅРЅС‹С…:
-'    - G (Р’С‹Р·РѕРІ РїРѕ TrueConf) вЂ” СЂР°Р±РѕС‚Р°РµС‚, РєРѕРіРґР° Р·Р°РїРѕР»РЅРµРЅ I;
-'    - H (РџРѕР·РІРѕРЅРёС‚СЊ РЅР° в„– С‚РµР»РµС„РѕРЅР°) вЂ” СЂР°Р±РѕС‚Р°РµС‚, РєРѕРіРґР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
-'      РІСЂСѓС‡РЅСѓСЋ Р·Р°РїРѕР»РЅРёР» J (#С‚РµР»РµС„РѕРЅР°). Р¤РѕСЂРјСѓР»Р° СЃР°РјР° РїСЂРѕРІРµСЂСЏРµС‚ J:
-'      РїСѓСЃС‚Рѕ/РїСЂРѕР±РµР»С‹ вЂ” СЃСЃС‹Р»РєР° РЅРµ РїРѕРєР°Р·С‹РІР°РµС‚СЃСЏ, РЅРѕРјРµСЂ РµСЃС‚СЊ вЂ” РїРѕРєР°Р·С‹РІР°РµС‚СЃСЏ.
+' ОБРАБОТКА ОСНОВНОГО СПРАВОЧНИКА
+' 1) По совпадению ФИО заполняется колонка I (ID TrueConf).
+' 2) Формулы гиперссылок записываются в КАЖДУЮ строку данных:
+'    - G (Вызов по TrueConf) — работает, когда заполнен I;
+'    - H (Позвонить на № телефона) — работает, когда пользователь
+'      вручную заполнил J (#телефона). Формула сама проверяет J:
+'      пусто/пробелы — ссылка не показывается, номер есть — показывается.
 ' =====================================================================
 Private Sub ProcessMainData(wsSprav As Worksheet, dictAttr As Object, _
                             ByRef foundCount As Long, ByRef notFoundCount As Long, _
@@ -237,30 +259,42 @@ Private Sub ProcessMainData(wsSprav As Worksheet, dictAttr As Object, _
     Dim lastRowSprav As Long
     lastRowSprav = wsSprav.Cells(wsSprav.Rows.Count, 1).End(xlUp).Row
 
-    ' РљРѕР»РѕРЅРєР° J (#С‚РµР»РµС„РѕРЅР°) Р·Р°РїРѕР»РЅСЏРµС‚СЃСЏ РІСЂСѓС‡РЅСѓСЋ вЂ” РґРµР»Р°РµРј РµС‘ С‚РµРєСЃС‚РѕРІРѕР№,
-    ' С‡С‚РѕР±С‹ РЅРѕРјРµСЂ РІРёРґР° "051211" РЅРµ С‚РµСЂСЏР» РІРµРґСѓС‰РёР№ РЅРѕР»СЊ РїСЂРё РІРІРѕРґРµ.
+    ' Колонка J (#телефона) заполняется вручную — делаем её текстовой,
+    ' чтобы номер вида "051211" не терял ведущий ноль при вводе.
     wsSprav.Columns(10).NumberFormat = "@"
 
     Dim i As Long, fio As String, fioNorm As String, attr As String
-    Dim company As String, key As String
+    Dim company As String, key As String, currentSection As String
 
     For i = 2 To lastRowSprav
         fio = Trim(CStr(wsSprav.Cells(i, 1).Value))
-        If Len(fio) = 0 Or IsSectionHeader(fio) Or fio = "---" Or InStr(fio, " ") = 0 Then
+        If Len(fio) = 0 Or fio = "---" Then
+            skippedCount = skippedCount + 1
+            GoTo NextRow
+        End If
+
+        If IsSectionHeader(fio) Then
+            currentSection = fio
+            skippedCount = skippedCount + 1
+            GoTo NextRow
+        End If
+
+        If InStr(fio, " ") = 0 Then
             skippedCount = skippedCount + 1
             GoTo NextRow
         End If
 
         fioNorm = NormalizeFIO(fio)
-        company = Trim(CStr(wsSprav.Cells(i, 13).Value))   ' РљРѕР»РѕРЅРєР° M: РљРѕРјРїР°РЅРёСЏ
+        company = Trim(CStr(wsSprav.Cells(i, 13).Value))   ' Колонка M: Компания
+        If Len(company) = 0 Then company = currentSection  ' нет M — берём класс из раздела
         If Len(company) = 0 Then company = ORG_MEN
 
-        key = fioNorm & "|" & company
+        key = fioNorm & "|" & CompanyClass(company)
 
-        ' --- Р“РёРїРµСЂСЃСЃС‹Р»РєРё Р·Р°РїРёСЃС‹РІР°СЋС‚СЃСЏ РІСЃРµРіРґР°, РЅРµР·Р°РІРёСЃРёРјРѕ РѕС‚ СЂРµР·СѓР»СЊС‚Р°С‚Р° РїРѕРёСЃРєР°:
-        ' РїСЂРѕРІРµСЂРєР° РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ СЃР°РјРѕР№ С„РѕСЂРјСѓР»РѕР№ (РїСѓСЃС‚Р°СЏ СЏС‡РµР№РєР° -> РїСѓСЃС‚Р°СЏ СЃСЃС‹Р»РєР°).
-        wsSprav.Cells(i, 7).Formula = "=IF(I" & i & "="""","""",HYPERLINK(""trueconf:""&I" & i & "&""&do=profile"",""Р’С‹Р·РѕРІ РїРѕ TrueConf""))"
-        wsSprav.Cells(i, 8).Formula = "=IF(TRIM(J" & i & "&"""")="""","""",IFNA(HYPERLINK(""Trueconf:#tel:""&TRIM(J" & i & ")," & """РџРѕР·РІРѕРЅРёС‚СЊ РЅР° в„– С‚РµР»РµС„РѕРЅР°""" & "),""""))"
+        ' --- Гиперссылки записываются всегда, независимо от результата поиска:
+        ' проверка выполняется самой формулой (пустая ячейка -> пустая ссылка).
+        wsSprav.Cells(i, 7).Formula = "=IF(I" & i & "="""","""",HYPERLINK(""trueconf:""&I" & i & "&""&do=profile"",""Вызов по TrueConf""))"
+        wsSprav.Cells(i, 8).Formula = "=IF(TRIM(J" & i & "&"""")="""","""",IFNA(HYPERLINK(""Trueconf:#tel:""&TRIM(J" & i & ")," & """Позвонить на № телефона""" & "),""""))"
 
         If dictAttr.Exists(key) Then
             attr = dictAttr(key)
@@ -276,7 +310,7 @@ Private Sub ProcessMainData(wsSprav As Worksheet, dictAttr As Object, _
 
 NextRow:
         If i Mod 200 = 0 Then
-            Application.StatusBar = "РћР±СЂР°Р±РѕС‚Р°РЅРѕ: " & i & " РёР· " & lastRowSprav
+            Application.StatusBar = "Обработано: " & i & " из " & lastRowSprav
             DoEvents
         End If
     Next i
@@ -284,7 +318,7 @@ End Sub
 
 
 ' =====================================================================
-' РќРћР РњРђР›РР—РђР¦РРЇ Р¤РРћ
+' НОРМАЛИЗАЦИЯ ФИО
 ' =====================================================================
 Private Function NormalizeFIO(ByVal fio As String) As String
     fio = Trim(fio)
@@ -296,16 +330,16 @@ End Function
 
 
 ' =====================================================================
-' РџР РћР’Р•Р РљРђ: РЎРўР РћРљРђ вЂ” Р—РђР“РћР›РћР’РћРљ Р РђР—Р”Р•Р›Рђ?
+' ПРОВЕРКА: СТРОКА — ЗАГОЛОВОК РАЗДЕЛА?
 ' =====================================================================
 Private Function IsSectionHeader(ByVal text As String) As Boolean
     Dim keywords As String, arrKeywords() As String, k As Long
-    keywords = "РРќР¤РћР РњРђР¦РРЇ|Р РЈРљРћР’РћР”РЎРўР’Рћ|РђРџРџРђР РђРў|РЈРџР РђР’Р›Р•РќРР•|РћРўР”Р•Р›|РЎР›РЈР–Р‘Рђ|Р¦Р•РќРўР |" & _
-               "Р‘Р РР“РђР”Рђ|Р¦Р•РҐ|РџР РћР•РљРў|Р‘Р›РћРљ|РќРђРџР РђР’Р›Р•РќРР•|Р“Р РЈРџРџРђ|Р”РћР§Р•Р РќРРҐ|РЎР•Р Р’РРЎРќР«Р•|" & _
-               "Р Р•Р“РРћРќРђР›Р¬РќР«Р™|Р¤РР›РРђР›|РћРћРћ|РџРђРћ|РњР•Р“РРћРќРЎРљРђРЇ|РЎРўР РЈРљРўРЈР РќР«Р•|РўР•Р›Р•Р¤РћРќ|" & _
-               "Р¤Р°РјРёР»РёСЏ РРјСЏ РћС‚С‡РµСЃС‚РІРѕ|РРќР’Р•РЎРўРР¦РР™|РџР•Р РЎРћРќРђР›РћРњ|РћР Р“РђРќРР—РђР¦РРћРќРќР«Рњ|Р”РћР‘Р«Р§Р•Р™|" & _
-               "РљРћРћР Р”РРќРђР¦РР|Р‘Р•Р—РћРџРђРЎРќРћРЎРўР|РћРҐР РђРќР«|Р“Р›РђР’РќРћР“Рћ РњР•РҐРђРќРРљРђ|Р“Р›РђР’РќРћР“Рћ Р­РќР•Р Р“Р•РўРРљРђ|" & _
-               "РњРЈР‘Р |РњР­Рќ|РњР•Р“РРћРќР“Р•РћР›РћР“РРЇ|РђР‘Рљ-1|РђР‘Рљ-2"
+    keywords = "ИНФОРМАЦИЯ|РУКОВОДСТВО|АППАРАТ|УПРАВЛЕНИЕ|ОТДЕЛ|СЛУЖБА|ЦЕНТР|" & _
+               "БРИГАДА|ЦЕХ|ПРОЕКТ|БЛОК|НАПРАВЛЕНИЕ|ГРУППА|ДОЧЕРНИХ|СЕРВИСНЫЕ|" & _
+               "РЕГИОНАЛЬНЫЙ|ФИЛИАЛ|ООО|ПАО|МЕГИОНСКАЯ|СТРУКТУРНЫЕ|ТЕЛЕФОН|" & _
+               "Фамилия Имя Отчество|ИНВЕСТИЦИЙ|ПЕРСОНАЛОМ|ОРГАНИЗАЦИОННЫМ|ДОБЫЧЕЙ|" & _
+               "КООРДИНАЦИИ|БЕЗОПАСНОСТИ|ОХРАНЫ|ГЛАВНОГО МЕХАНИКА|ГЛАВНОГО ЭНЕРГЕТИКА|" & _
+               "МУБР|МЭН|МЕГИОНГЕОЛОГИЯ|АБК-1|АБК-2"
     text = UCase(Trim(text))
     arrKeywords = Split(keywords, "|")
     For k = 0 To UBound(arrKeywords)
@@ -319,7 +353,7 @@ End Function
 
 
 ' =====================================================================
-' РЈР”РђР›Р•РќРР• Р›РРЎРўРђ (Р“РђР РђРќРўРР РЈР•Рў РџР•Р Р•РЎРћР—Р”РђРќРР• РЎ РќРЈР›РЇ)
+' УДАЛЕНИЕ ЛИСТА (ГАРАНТИРУЕТ ПЕРЕСОЗДАНИЕ С НУЛЯ)
 ' =====================================================================
 Private Sub DeleteSheetIfExists(wb As Workbook, sheetName As String)
     Dim ws As Worksheet
@@ -336,18 +370,18 @@ End Sub
 
 
 ' =====================================================================
-' РћРўР§РЃРў Рћ Р РђРЎРҐРћР–Р”Р•РќРРЇРҐ вЂ” РІСЃРµРіРґР° СЃРѕР·РґР°С‘С‚СЃСЏ Р·Р°РЅРѕРІРѕ
+' ОТЧЁТ О РАСХОЖДЕНИЯХ — всегда создаётся заново
 ' =====================================================================
 Private Sub CreateDiscrepancyReport(wb As Workbook, dictTC As Object, wsSprav As Worksheet)
-    ' РџРµСЂРµСЃРѕР·РґР°С‘Рј Р»РёСЃС‚ СЃ РЅСѓР»СЏ:
+    ' Пересоздаём лист с нуля:
     DeleteSheetIfExists wb, SHEET_NAME_DISCREPANCY
     Dim wsReport As Worksheet
     Set wsReport = wb.Sheets.Add(After:=wb.Sheets(wb.Sheets.Count))
     wsReport.Name = SHEET_NAME_DISCREPANCY
 
-    wsReport.Range("A1:H1").Value = Array("в„–", "Р¤РРћ (РёР· TrueConf)", "РђС‚СЂРёР±СѓС‚ (ID TrueConf)", _
-                                          "РЎРµСЂРІРµСЂ", "Email", "РљРѕРјРїР°РЅРёСЏ", _
-                                          "Р”Р°С‚Р° РїРµСЂРІРѕРіРѕ РІС…РѕРґР°", "РЎС‚Р°С‚СѓСЃ")
+    wsReport.Range("A1:H1").Value = Array("№", "ФИО (из TrueConf)", "Атрибут (ID TrueConf)", _
+                                          "Сервер", "Email", "Компания", _
+                                          "Дата первого входа", "Статус")
     With wsReport.Range("A1:H1")
         .Font.Bold = True
         .Interior.Color = RGB(68, 84, 106)
@@ -370,14 +404,19 @@ Private Sub CreateDiscrepancyReport(wb As Workbook, dictTC As Object, wsSprav As
     Dim lastRowSprav As Long
     lastRowSprav = wsSprav.Cells(wsSprav.Rows.Count, 1).End(xlUp).Row
 
-    Dim i As Long, fio As String, company As String
+    Dim i As Long, fio As String, company As String, rawFio As String
+    Dim currentSection As String
     For i = 2 To lastRowSprav
-        fio = NormalizeFIO(CStr(wsSprav.Cells(i, 1).Value))
+        rawFio = Trim(CStr(wsSprav.Cells(i, 1).Value))
+        If Len(rawFio) > 0 And IsSectionHeader(rawFio) Then
+            currentSection = rawFio
+        End If
+        fio = NormalizeFIO(rawFio)
         company = Trim(CStr(wsSprav.Cells(i, 13).Value))
-        If Len(company) = 0 Then company = ORG_MEN
+        If Len(company) = 0 Then company = currentSection
 
-        If Len(fio) > 0 And InStr(fio, " ") > 0 And Not IsSectionHeader(fio) Then
-            dictSprav(fio & "|" & company) = True
+        If Len(fio) > 0 And InStr(fio, " ") > 0 And Not IsSectionHeader(rawFio) Then
+            dictSprav(fio & "|" & CompanyClass(company)) = True
             dictSprav(fio) = True
         End If
     Next i
@@ -394,7 +433,7 @@ Private Sub CreateDiscrepancyReport(wb As Workbook, dictTC As Object, wsSprav As
         fioTC = keyParts(0)
         companyTC = infoParts(3)
 
-        If Not dictSprav.Exists(fioTC & "|" & companyTC) And Not dictSprav.Exists(fioTC) Then
+        If Not dictSprav.Exists(fioTC & "|" & CompanyClass(companyTC)) And Not dictSprav.Exists(fioTC) Then
             wsReport.Cells(reportRow, 1).Value = discrepancyCount + 1
             wsReport.Cells(reportRow, 2).Value = Application.WorksheetFunction.Proper(fioTC)
             wsReport.Cells(reportRow, 3).Value = infoParts(0)
@@ -411,7 +450,7 @@ Private Sub CreateDiscrepancyReport(wb As Workbook, dictTC As Object, wsSprav As
             Else
                 wsReport.Cells(reportRow, 7).Value = infoParts(4)
             End If
-            wsReport.Cells(reportRow, 8).Value = "РќРµС‚ РІ СЃРїСЂР°РІРѕС‡РЅРёРєРµ"
+            wsReport.Cells(reportRow, 8).Value = "Нет в справочнике"
             wsReport.Range("A" & reportRow & ":H" & reportRow).Interior.Color = RGB(255, 242, 204)
             reportRow = reportRow + 1
             discrepancyCount = discrepancyCount + 1
@@ -420,13 +459,13 @@ Private Sub CreateDiscrepancyReport(wb As Workbook, dictTC As Object, wsSprav As
 
     If discrepancyCount > 0 Then
         With wsReport.Range("A" & reportRow & ":H" & reportRow)
-            .Value = Array("", "РРўРћР“Рћ:", discrepancyCount, "", "", "", "", "РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Р±РµР· Р·Р°РїРёСЃРё")
+            .Value = Array("", "ИТОГО:", discrepancyCount, "", "", "", "", "пользователей без записи")
             .Font.Bold = True
             .Interior.Color = RGB(255, 192, 0)
         End With
         wsReport.Range("A1:H" & reportRow - 1).AutoFilter
     Else
-        wsReport.Cells(reportRow, 2).Value = "Р Р°СЃС…РѕР¶РґРµРЅРёР№ РЅРµ РЅР°Р№РґРµРЅРѕ"
+        wsReport.Cells(reportRow, 2).Value = "Расхождений не найдено"
         wsReport.Cells(reportRow, 2).Font.Color = RGB(0, 128, 0)
         wsReport.Cells(reportRow, 2).Font.Bold = True
     End If
@@ -436,7 +475,7 @@ End Sub
 
 
 ' =====================================================================
-' РћРўР§РЃРў РџРћ РљРђРўР•Р“РћР РРЇРњ вЂ” РІСЃРµРіРґР° СЃРѕР·РґР°С‘С‚СЃСЏ Р·Р°РЅРѕРІРѕ
+' ОТЧЁТ ПО КАТЕГОРИЯМ — всегда создаётся заново
 ' =====================================================================
 Private Sub CreateCategoryReport(wb As Workbook, wsSprav As Worksheet)
     Const COL_FIO As Long = 1
@@ -446,15 +485,15 @@ Private Sub CreateCategoryReport(wb As Workbook, wsSprav As Worksheet)
     Const COL_TRUECONF As Long = 9
     Const COL_COMPANY As Long = 13
 
-    ' РџРµСЂРµСЃРѕР·РґР°С‘Рј Р»РёСЃС‚ СЃ РЅСѓР»СЏ:
+    ' Пересоздаём лист с нуля:
     DeleteSheetIfExists wb, SHEET_NAME_REPORT
     Dim wsRep As Worksheet
     Set wsRep = wb.Sheets.Add(After:=wb.Sheets(SHEET_NAME_DISCREPANCY))
     wsRep.Name = SHEET_NAME_REPORT
 
-    wsRep.Range("A1:I1").Value = Array("Р¤РРћ", "Р”РѕР»Р¶РЅРѕСЃС‚СЊ/РћС‚РґРµР»", "РљРѕРјРїР°РЅРёСЏ", _
-                                       "РўРёРї Р»РёРЅРёРё", "РўРµР»РµС„РѕРЅ", "РњРѕР±РёР»СЊРЅС‹Р№", _
-                                       "Email", "TrueConf ID", "РљР°С‚РµРіРѕСЂРёСЏ СЃР»СѓР¶Р±С‹")
+    wsRep.Range("A1:I1").Value = Array("ФИО", "Должность/Отдел", "Компания", _
+                                       "Тип линии", "Телефон", "Мобильный", _
+                                       "Email", "TrueConf ID", "Категория службы")
     With wsRep.Range("A1:I1")
         .Font.Bold = True
         .Interior.Color = RGB(0, 112, 192)
@@ -505,53 +544,53 @@ End Sub
 
 
 ' =====================================================================
-' РћРџР Р•Р”Р•Р›Р•РќРР• РўРРџРђ Р›РРќРР
+' ОПРЕДЕЛЕНИЕ ТИПА ЛИНИИ
 ' =====================================================================
 Private Function DetermineLineType(phoneNum As String) As String
     phoneNum = Replace(Replace(phoneNum, "-", ""), " ", "")
     If Len(phoneNum) = 0 Then
-        DetermineLineType = "РќРµ СѓРєР°Р·Р°РЅ"
+        DetermineLineType = "Не указан"
     ElseIf Left(phoneNum, 1) = "2" Or Left(phoneNum, 1) = "3" Then
-        DetermineLineType = "Р¦РёС„СЂРѕРІР°СЏ Р»РёРЅРёСЏ"
+        DetermineLineType = "Цифровая линия"
     ElseIf IsNumeric(phoneNum) And Len(phoneNum) = 3 Then
-        DetermineLineType = "IP-С‚РµР»РµС„РѕРЅРёСЏ"
+        DetermineLineType = "IP-телефония"
     Else
-        DetermineLineType = "РђРЅР°Р»РѕРіРѕРІР°СЏ Р»РёРЅРёСЏ"
+        DetermineLineType = "Аналоговая линия"
     End If
 End Function
 
 
 ' =====================================================================
-' РћРџР Р•Р”Р•Р›Р•РќРР• РљРђРўР•Р“РћР РР РЎР›РЈР–Р‘Р«
+' ОПРЕДЕЛЕНИЕ КАТЕГОРИИ СЛУЖБЫ
 ' =====================================================================
 Private Function DetermineServiceCategory(department As String) As String
     Dim deptUpper As String: deptUpper = UCase(department)
-    If InStr(deptUpper, "Р‘Р•Р—РћРџРђРЎРќРћРЎРў") > 0 Or InStr(deptUpper, "РћРҐР РђРќ") > 0 Then
-        DetermineServiceCategory = "Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ Рё РѕС…СЂР°РЅР° С‚СЂСѓРґР°"
-    ElseIf InStr(deptUpper, "РџР РћРР—Р’РћР”РЎРўР’") > 0 Or InStr(deptUpper, "РўР•РҐРќРР§Р•РЎРљ") > 0 Or InStr(deptUpper, "Р¦Р”РџРќ") > 0 Then
-        DetermineServiceCategory = "РџСЂРѕРёР·РІРѕРґСЃС‚РІРµРЅРЅРѕ-С‚РµС…РЅРёС‡РµСЃРєРёРµ СЃР»СѓР¶Р±С‹"
-    ElseIf InStr(deptUpper, "Р¤РРќРђРќРЎ") > 0 Or InStr(deptUpper, "Р­РљРћРќРћРњР") > 0 Then
-        DetermineServiceCategory = "Р¤РёРЅР°РЅСЃРѕРІС‹Рµ СѓРїСЂР°РІР»РµРЅРёСЏ"
-    ElseIf InStr(deptUpper, "РџР•Р РЎРћРќРђР›") > 0 Or InStr(deptUpper, "РљРђР”Р ") > 0 Or InStr(deptUpper, "РЎРћР¦РРђР›Р¬Рќ") > 0 Then
-        DetermineServiceCategory = "РћС‚РґРµР» РєР°РґСЂРѕРІ Рё СЃРѕС†. СЂР°Р·РІРёС‚РёСЏ"
-    ElseIf InStr(deptUpper, "РњР•РҐРђРќ") > 0 Or InStr(deptUpper, "Р­РќР•Р Р“Р•Рў") > 0 Then
-        DetermineServiceCategory = "РЎР»СѓР¶Р±С‹ РіР». РјРµС…Р°РЅРёРєР° Рё СЌРЅРµСЂРіРµС‚РёРєР°"
-    ElseIf InStr(deptUpper, "РўР РђРќРЎРџРћР Рў") > 0 Or InStr(deptUpper, "Р›РћР“РРЎРўРРљ") > 0 Or InStr(deptUpper, "РЎРљР›РђР”") > 0 Then
-        DetermineServiceCategory = "РўСЂР°РЅСЃРїРѕСЂС‚ Рё СЃРєР»Р°РґСЃРєР°СЏ Р»РѕРіРёСЃС‚РёРєР°"
-    ElseIf InStr(deptUpper, "Р”РћР‘Р«Р§") > 0 Then
-        DetermineServiceCategory = "Р¦РµРЅС‚СЂ СѓРїСЂР°РІР»РµРЅРёСЏ РґРѕР±С‹С‡РµР№"
-    ElseIf InStr(deptUpper, "РњРЈР‘Р ") > 0 Or InStr(deptUpper, "РњР­Рќ") > 0 Or InStr(deptUpper, "РњР•Р“РРћРќР“Р•РћР›РћР“РРЇ") > 0 Then
-        DetermineServiceCategory = "Р”РѕС‡РµСЂРЅРёРµ РѕР±С‰РµСЃС‚РІР°"
-    ElseIf InStr(deptUpper, "PAO") > 0 Or InStr(deptUpper, "РџРђРћ") > 0 Then
-        DetermineServiceCategory = "РџРђРћ"
+    If InStr(deptUpper, "БЕЗОПАСНОСТ") > 0 Or InStr(deptUpper, "ОХРАН") > 0 Then
+        DetermineServiceCategory = "Безопасность и охрана труда"
+    ElseIf InStr(deptUpper, "ПРОИЗВОДСТВ") > 0 Or InStr(deptUpper, "ТЕХНИЧЕСК") > 0 Or InStr(deptUpper, "ЦДПН") > 0 Then
+        DetermineServiceCategory = "Производственно-технические службы"
+    ElseIf InStr(deptUpper, "ФИНАНС") > 0 Or InStr(deptUpper, "ЭКОНОМИ") > 0 Then
+        DetermineServiceCategory = "Финансовые управления"
+    ElseIf InStr(deptUpper, "ПЕРСОНАЛ") > 0 Or InStr(deptUpper, "КАДР") > 0 Or InStr(deptUpper, "СОЦИАЛЬН") > 0 Then
+        DetermineServiceCategory = "Отдел кадров и соц. развития"
+    ElseIf InStr(deptUpper, "МЕХАН") > 0 Or InStr(deptUpper, "ЭНЕРГЕТ") > 0 Then
+        DetermineServiceCategory = "Службы гл. механика и энергетика"
+    ElseIf InStr(deptUpper, "ТРАНСПОРТ") > 0 Or InStr(deptUpper, "ЛОГИСТИК") > 0 Or InStr(deptUpper, "СКЛАД") > 0 Then
+        DetermineServiceCategory = "Транспорт и складская логистика"
+    ElseIf InStr(deptUpper, "ДОБЫЧ") > 0 Then
+        DetermineServiceCategory = "Центр управления добычей"
+    ElseIf InStr(deptUpper, "МУБР") > 0 Or InStr(deptUpper, "МЭН") > 0 Or InStr(deptUpper, "МЕГИОНГЕОЛОГИЯ") > 0 Then
+        DetermineServiceCategory = "Дочерние общества"
+    ElseIf InStr(deptUpper, "PAO") > 0 Or InStr(deptUpper, "ПАО") > 0 Then
+        DetermineServiceCategory = "ПАО"
     Else
-        DetermineServiceCategory = "РџСЂРѕС‡РёРµ СЃР»СѓР¶Р±С‹"
+        DetermineServiceCategory = "Прочие службы"
     End If
 End Function
 
 
 ' =====================================================================
-' РџР•Р Р•РљР›Р®Р§РђРўР•Р›Р Р’РР”РРњРћРЎРўР Р›РРЎРўРћР’
+' ПЕРЕКЛЮЧАТЕЛИ ВИДИМОСТИ ЛИСТОВ
 ' =====================================================================
 Sub ToggleDiscrepancySheet()
     ToggleSheetVisibility SHEET_NAME_DISCREPANCY
@@ -567,16 +606,16 @@ Private Sub ToggleSheetVisibility(sheetName As String)
     Set ws = ThisWorkbook.Sheets(sheetName)
     On Error GoTo 0
     If ws Is Nothing Then
-        MsgBox "Р›РёСЃС‚ '" & sheetName & "' РЅРµ РЅР°Р№РґРµРЅ.", vbExclamation
+        MsgBox "Лист '" & sheetName & "' не найден.", vbExclamation
         Exit Sub
     End If
     If ws.Visible = xlSheetVisible Then
         ws.Visible = xlSheetHidden
-        MsgBox "Р›РёСЃС‚ '" & sheetName & "' СЃРєСЂС‹С‚.", vbInformation
+        MsgBox "Лист '" & sheetName & "' скрыт.", vbInformation
     Else
         ws.Visible = xlSheetVisible
         ws.Activate
-        MsgBox "Р›РёСЃС‚ '" & sheetName & "' РїРѕРєР°Р·Р°РЅ.", vbInformation
+        MsgBox "Лист '" & sheetName & "' показан.", vbInformation
     End If
 End Sub
 
